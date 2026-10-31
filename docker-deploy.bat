@@ -75,6 +75,8 @@ if not exist "static\uploads\images" mkdir static\uploads\images
 echo %SUCCESS_PREFIX% 已创建必要的目录
 
 REM 处理命令行参数
+if /i "%~2"=="cn" set "COMPOSE_FILE=docker-compose-cn.yml"
+if /i "%~2"=="gcn" set "COMPOSE_FILE=docker-compose-gcn.yml"
 if "%1"=="" goto quick_deploy
 if "%1"=="help" goto show_help
 if "%1"=="start" goto start_services
@@ -92,11 +94,10 @@ goto build_and_start
 
 :build_image
 echo %INFO_PREFIX% 构建 Docker 镜像...
-set /p use_cn="是否使用国内镜像源？(y/n): "
-if /i "!use_cn!"=="y" (
-    set "COMPOSE_FILE=docker-compose-cn.yml"
-) else (
-    set "COMPOSE_FILE=docker-compose.yml"
+if "%~2"=="" (
+    set /p variant="选择镜像：1 普通版 / 2 国内版 / 3 GCN 版（默认 1）: "
+    if "!variant!"=="2" set "COMPOSE_FILE=docker-compose-cn.yml"
+    if "!variant!"=="3" set "COMPOSE_FILE=docker-compose-gcn.yml"
 )
 %COMPOSE_CMD% -f %COMPOSE_FILE% build --no-cache
 if %errorlevel% neq 0 (
@@ -189,6 +190,7 @@ echo %SUCCESS_PREFIX% 🎉 部署完成！
 echo.
 set "WEB_PORT=9000"
 if /i "%COMPOSE_FILE%"=="docker-compose-cn.yml" set "WEB_PORT=8000"
+if /i "%COMPOSE_FILE%"=="docker-compose-gcn.yml" set "WEB_PORT=5011"
 echo 📱 访问地址:
 echo    HTTP: http://localhost:%WEB_PORT%
 echo.
@@ -207,7 +209,7 @@ goto :eof
 :show_help
 echo 闲鱼管理系统 Docker 部署脚本 (Windows版本)
 echo.
-echo 用法: %~nx0 [命令]
+echo 用法: %~nx0 [命令] [normal^|cn^|gcn]
 echo.
 echo 命令:
 echo   start     启动服务
@@ -222,6 +224,8 @@ echo.
 echo 示例:
 echo   %~nx0         # 快速部署
 echo   %~nx0 start   # 启动服务
+echo   %~nx0 build gcn  # 构建 GCN 版镜像
+echo   %~nx0 start gcn  # 启动 GCN 版
 echo   %~nx0 logs    # 查看日志
 echo.
 goto end

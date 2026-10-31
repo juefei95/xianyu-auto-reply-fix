@@ -29,12 +29,21 @@ compose() {
     $COMPOSE_CMD -f "$SELECTED_COMPOSE_FILE" "$@"
 }
 
+select_compose_file() {
+    case "$1" in
+        ""|normal) SELECTED_COMPOSE_FILE="docker-compose.yml" ;;
+        cn) SELECTED_COMPOSE_FILE="docker-compose-cn.yml" ;;
+        gcn) SELECTED_COMPOSE_FILE="docker-compose-gcn.yml" ;;
+        *) print_error "未知部署配置: $1（可选 normal、cn、gcn）"; exit 1 ;;
+    esac
+}
+
 get_web_port() {
-    if [ "$SELECTED_COMPOSE_FILE" = "docker-compose-cn.yml" ]; then
-        echo "8000"
-    else
-        echo "9000"
-    fi
+    case "$SELECTED_COMPOSE_FILE" in
+        docker-compose-cn.yml) echo "8000" ;;
+        docker-compose-gcn.yml) echo "5011" ;;
+        *) echo "9000" ;;
+    esac
 }
 
 # 打印带颜色的消息
@@ -100,11 +109,17 @@ init_config() {
 # 构建镜像
 build_image() {
     print_info "构建 Docker 镜像..."
-    echo "是否需要使用国内镜像(y/n): " && read iscn
-    if [[ $iscn == "y" ]]; then
-        SELECTED_COMPOSE_FILE="docker-compose-cn.yml"
+    if [ -n "$1" ]; then
+        select_compose_file "$1"
     else
-        SELECTED_COMPOSE_FILE="$COMPOSE_FILE"
+        echo "选择镜像：1 普通版 / 2 国内版 / 3 GCN 版（默认 1）"
+        read -r selection
+        case "${selection:-1}" in
+            1) select_compose_file normal ;;
+            2) select_compose_file cn ;;
+            3) select_compose_file gcn ;;
+            *) print_error "无效选项: $selection"; exit 1 ;;
+        esac
     fi  
     compose build --no-cache
     print_success "镜像构建完成"
@@ -299,7 +314,7 @@ cleanup() {
 show_help() {
     echo "闲鱼管理系统 Docker 部署脚本"
     echo ""
-    echo "用法: $0 [命令] [选项]"
+    echo "用法: $0 [命令] [normal|cn|gcn] [选项]"
     echo ""
     echo "命令:"
     echo "  init                初始化配置文件"
@@ -319,6 +334,8 @@ show_help() {
     echo "  $0 init             # 初始化配置"
     echo "  $0 start            # 启动基础服务"
     echo "  $0 start with-nginx # 启动包含 Nginx 的服务"
+    echo "  $0 build gcn        # 构建 GCN 版镜像"
+    echo "  $0 start gcn        # 启动 GCN 版"
     echo "  $0 logs xianyu-app  # 查看应用日志"
     echo ""
 }
@@ -332,27 +349,39 @@ main() {
             ;;
         "build")
             check_dependencies
-            build_image
+            build_image "$2"
             ;;
         "start")
             check_dependencies
             init_config
-            build_image
-            start_services "$2"
+            if [ "$2" = "with-nginx" ]; then
+                build_image
+                start_services with-nginx
+            else
+                build_image "$2"
+                start_services "$3"
+            fi
             ;;
         "stop")
+            select_compose_file "$2"
             stop_services
             ;;
         "restart")
+            select_compose_file "$2"
             restart_services
             ;;
         "status")
+            select_compose_file "$2"
             show_status
             ;;
         "logs")
-            show_logs "$2"
+            case "$2" in
+                normal|cn|gcn) select_compose_file "$2"; show_logs "$3" ;;
+                *) show_logs "$2" ;;
+            esac
             ;;
         "health")
+            select_compose_file "$2"
             health_check
             ;;
         "backup")
@@ -363,6 +392,7 @@ main() {
             update_deployment
             ;;
         "cleanup")
+            select_compose_file "$2"
             cleanup
             ;;
 
