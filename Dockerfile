@@ -1,7 +1,10 @@
 # 使用Python 3.11作为基础镜像
 # 支持通过构建参数指定镜像源（解决多架构构建时的网络问题）
 # 使用方法：docker build --build-arg BASE_IMAGE=ccr.ccs.tencentyun.com/dockerp/library/python:3.11-slim-bookworm
+ARG NODE_IMAGE=node:18.20.4-bookworm-slim
 ARG BASE_IMAGE=python:3.11-slim-bookworm
+FROM ${NODE_IMAGE} AS node-runtime
+
 FROM ${BASE_IMAGE}
 
 # 设置标签信息
@@ -31,8 +34,6 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
 RUN apt-get -o Acquire::Retries=5 update && \
     apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
         # 基础工具
-        nodejs \
-        npm \
         tzdata \
         curl \
         ca-certificates \
@@ -86,8 +87,12 @@ RUN apt-get -o Acquire::Retries=5 update && \
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 验证Node.js安装并设置环境变量
-RUN node --version && npm --version
-ENV NODE_PATH=/usr/lib/node_modules
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    test "$(node --version)" = "v18.20.4" && npm --version
+ENV NODE_PATH=/usr/local/lib/node_modules
+ENV PLAYWRIGHT_NODEJS_PATH=/usr/local/bin/node
 
 # 复制requirements.txt并安装Python依赖
 COPY requirements.txt .
@@ -96,6 +101,7 @@ RUN pip install --no-cache-dir --upgrade pip -i https://pypi.tuna.tsinghua.edu.c
 
 # 复制项目文件
 COPY . .
+RUN python -c "from utils.node_runtime import configure_playwright_node; print(configure_playwright_node())"
 
 # 安装Playwright浏览器（必须在复制项目文件之后）
 RUN playwright install chromium && \

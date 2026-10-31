@@ -1,4 +1,4 @@
-"""为 Playwright 选择包含已知安全修复的外部 Node.js。"""
+"""为 Playwright 选择符合项目版本要求的外部 Node.js。"""
 
 import os
 from pathlib import Path
@@ -7,8 +7,10 @@ import shutil
 import subprocess
 
 
+# Node 18.20.4 is retained for container compatibility; newer release lines use
 # https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
 MINIMUM_NODE_VERSIONS = {
+    18: (18, 20, 4),
     22: (22, 23, 4),
     24: (24, 22, 1),
     26: (26, 12, 1),
@@ -44,8 +46,8 @@ def configure_playwright_node() -> str:
     minimum = MINIMUM_NODE_VERSIONS.get(version[0])
     if minimum is None or version < minimum:
         raise RuntimeError(
-            f"Node.js {'.'.join(map(str, version))} 未满足安全版本要求；"
-            "请使用 22.23.4+（22.x）、24.22.1+（24.x）或 26.12.1+（26.x）。"
+            f"Node.js {'.'.join(map(str, version))} 未满足版本要求；"
+            "请使用 18.20.4+（18.x）、22.23.4+（22.x）、24.22.1+（24.x）或 26.12.1+（26.x）。"
         )
 
     os.environ["PLAYWRIGHT_NODEJS_PATH"] = node_path

@@ -18,13 +18,13 @@ class NodeRuntimeTests(unittest.TestCase):
             self.assertEqual(os.environ["PLAYWRIGHT_NODEJS_PATH"], executable)
 
     def test_accepts_fixed_supported_release_lines(self):
-        for version in ("v22.23.4", "v24.22.1", "v24.23.0", "v26.12.1"):
+        for version in ("v18.20.4", "v22.23.4", "v24.22.1", "v24.23.0", "v26.12.1"):
             with self.subTest(version=version):
                 self.configure_version(version)
 
     def test_rejects_vulnerable_and_unsupported_release_lines(self):
-        for version in ("v22.23.3", "v24.14.1", "v24.21.0", "v26.12.0", "v20.20.0", "v25.9.0"):
-            with self.subTest(version=version), self.assertRaisesRegex(RuntimeError, "安全版本"):
+        for version in ("v18.20.3", "v22.23.3", "v24.14.1", "v24.21.0", "v26.12.0", "v20.20.0", "v25.9.0"):
+            with self.subTest(version=version), self.assertRaisesRegex(RuntimeError, "版本要求"):
                 self.configure_version(version)
 
     def test_validates_explicit_override_instead_of_falling_back(self):
@@ -32,7 +32,7 @@ class NodeRuntimeTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"PLAYWRIGHT_NODEJS_PATH": explicit}, clear=True), \
              mock.patch("utils.node_runtime.shutil.which", return_value=explicit) as which, \
              mock.patch("utils.node_runtime.subprocess.run", return_value=mock.Mock(stdout="v24.21.0")):
-            with self.assertRaisesRegex(RuntimeError, "安全版本"):
+            with self.assertRaisesRegex(RuntimeError, "版本要求"):
                 configure_playwright_node()
             which.assert_called_once_with(explicit)
 
