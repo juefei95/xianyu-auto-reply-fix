@@ -1,5 +1,11 @@
 @echo off
-chcp 65001 >nul
+if not defined DOCKER_DEPLOY_UTF8 (
+    setlocal enabledelayedexpansion
+    set "DOCKER_DEPLOY_UTF8=1"
+    chcp 65001 >nul
+    call "%~f0" %*
+    exit /b !errorlevel!
+)
 setlocal enabledelayedexpansion
 
 REM 闲鱼管理系统 Docker 部署脚本 (Windows版本)
@@ -20,7 +26,7 @@ set "SUCCESS_PREFIX=[SUCCESS]"
 set "WARNING_PREFIX=[WARNING]"
 set "ERROR_PREFIX=[ERROR]"
 
-REM 检查依赖
+REM Check dependencies
 echo %INFO_PREFIX% 检查系统依赖...
 
 where docker >nul 2>&1
@@ -45,7 +51,7 @@ if %errorlevel% neq 0 (
 
 echo %SUCCESS_PREFIX% 系统依赖检查通过
 
-REM 初始化配置
+REM Initialize configuration
 echo %INFO_PREFIX% 初始化配置文件...
 
 REM 检查关键文件
